@@ -9,6 +9,10 @@
       pkgs = import nixpkgs { inherit system; };
     in {
       devShell.${system} = let
+        # Fix for https://github.com/emilk/egui/issues/5401
+        libPath = with pkgs;
+          lib.makeLibraryPath [ wayland-protocols wayland libxkbcommon libGL ];
+
         targetName = { mingw = "x86_64-w64-mingw32"; };
 
         # Generate the cross compilation packages import
@@ -47,6 +51,9 @@
 
           # Use binaries installed with `cargo install`
           export PATH=$PATH:$CARGO_HOME/bin
+
+          # Fix for https://github.com/emilk/egui/issues/5401
+          export LD_LIBRARY_PATH="${libPath}"
 
           # Install and display the current toolchain
           rustup show
