@@ -4,7 +4,6 @@ mod invitation;
 mod jwt;
 mod party;
 mod store;
-mod tests;
 mod user;
 
 use std::sync::Arc;
