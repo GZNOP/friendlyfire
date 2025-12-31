@@ -71,3 +71,10 @@ sequenceDiagram
     S-->>SS: "Fire" message
     SS->>SS: Show the rasterized overlays
 ```
+
+# Server configuration
+Through an .env file located in `server/.env`
+
+Keys :
+- PUBLIC_URL : The URL the server will be available throught e.g. : https://example.com:4646
+- JWT_SECRET : A 64 character long secret **SENSITIVE INFORMATION**
