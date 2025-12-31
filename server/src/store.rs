@@ -2,13 +2,12 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, bail};
 use argon2::{
-    Argon2, PasswordHash, PasswordHasher, PasswordVerifier,
+    Argon2, PasswordHasher,
     password_hash::{SaltString, rand_core::OsRng},
 };
 use tokio::{sync::RwLock, time::Instant};
 
 use crate::{
-    gui::DebugSnapshot,
     invitation::{Invitation, InvitationToken},
     party::{Party, PartyId, Role},
     user::{User, UserId},
@@ -36,6 +35,11 @@ pub trait Store: Send + Sync {
 
     fn create_invitation(&mut self, party_id: PartyId, ttl: Duration) -> InvitationToken;
     fn consume_invitation(&mut self, token: InvitationToken) -> anyhow::Result<PartyId>;
+
+    // DEBUG functions
+    fn create_fake_user(&mut self);
+    fn create_fake_party(&mut self);
+    fn create_fake_invitation(&mut self);
 }
 
 pub type SharedStore = Arc<RwLock<dyn Store>>;
@@ -45,32 +49,6 @@ pub struct MockStore {
     pub users: HashMap<UserId, User>,
     pub parties: HashMap<PartyId, Party>,
     pub invitations: HashMap<InvitationToken, Invitation>,
-}
-
-impl MockStore {
-    // DEBUG use MockStore::default instead
-    pub fn debug_new() -> Self {
-        let salt = SaltString::generate(&mut OsRng);
-        let argon2 = Argon2::default();
-        let password_hash = argon2
-            .hash_password("Louvre".as_bytes(), &salt)
-            .unwrap()
-            .to_string();
-
-        let user = User::new(
-            "df@prout.com".to_string(),
-            "defaultmodel".to_string(),
-            password_hash,
-        );
-        let mut users = HashMap::new();
-        users.insert(user.id, user);
-
-        Self {
-            users,
-            parties: HashMap::new(),
-            invitations: HashMap::new(),
-        }
-    }
 }
 
 #[async_trait::async_trait]
@@ -186,5 +164,63 @@ impl Store for MockStore {
         }
 
         Ok(invitation.party_id)
+    }
+
+    fn create_fake_user(&mut self) {
+        let id = UserId::new_v4();
+        let password_hash = {
+            let salt = SaltString::generate(&mut OsRng);
+            let argon2 = Argon2::default();
+            argon2
+                .hash_password("Louvre".as_bytes(), &salt)
+                .unwrap()
+                .to_string()
+        };
+
+        self.users.insert(
+            id,
+            crate::user::User {
+                id,
+                email: format!("user{}@test.dev", self.users.len() + 1),
+                username: format!("user{}", self.users.len() + 1),
+                created_at: Instant::now(),
+                password_hash,
+            },
+        );
+    }
+
+    fn create_fake_party(&mut self) {
+        let Some(user) = self.users.values().next() else {
+            return;
+        };
+
+        let party_id = PartyId::new_v4();
+        let mut members = HashMap::new();
+        members.insert(user.id, Role::Creator);
+
+        self.parties.insert(
+            party_id,
+            crate::party::Party {
+                id: party_id,
+                creator: user.clone(),
+                members,
+            },
+        );
+    }
+
+    fn create_fake_invitation(&mut self) {
+        let Some(party) = self.parties.values().next() else {
+            return;
+        };
+
+        let token = InvitationToken::new_v4();
+        self.invitations.insert(
+            token,
+            crate::invitation::Invitation {
+                token,
+                party_id: party.id,
+                valid_until: Instant::now() + Duration::from_secs(3600),
+            },
+        );
     }
 }

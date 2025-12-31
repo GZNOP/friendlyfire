@@ -5,7 +5,7 @@ use tokio::{sync::RwLock, time::Instant};
 use crate::{
     invitation::InvitationToken,
     party::{PartyId, Role},
-    store::MockStore,
+    store::{MockStore, Store},
     user::UserId,
 };
 
@@ -34,6 +34,28 @@ struct InvitationView {
 impl DebugApp {
     pub fn new(store: Arc<RwLock<MockStore>>) -> Self {
         Self { state: store }
+    }
+
+    fn debug_actions(&self, ui: &mut egui::Ui) {
+        ui.heading("Debug Actions");
+        ui.horizontal(|ui| {
+            if ui.button("🦧 Create fake user").clicked() {
+                let mut store = self.state.blocking_write();
+                store.create_fake_user();
+            }
+
+            if ui.button("🕺 Create party").clicked() {
+                let mut store = self.state.blocking_write();
+                store.create_fake_party();
+            }
+
+            if ui.button("💌 Create invitation").clicked() {
+                let mut store = self.state.blocking_write();
+                store.create_fake_invitation();
+            }
+        });
+
+        ui.separator();
     }
 
     fn users_section(&self, ui: &mut egui::Ui, users: &[UserView]) {
@@ -111,6 +133,8 @@ impl eframe::App for DebugApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ui.heading("FriendlyFire Server Debug");
             ui.separator();
+
+            self.debug_actions(ui);
 
             self.users_section(ui, &snapshot.users);
             self.parties_section(ui, &snapshot.parties);
