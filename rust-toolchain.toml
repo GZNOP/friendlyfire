@@ -13,4 +13,4 @@ components = [
 # If in a nix devShell :
 # First target is the default for the cargo build
 # REFERENCE: This is handled by flake.nix
-targets = [ "x86_64-pc-windows-gnu" ]
+targets = [ "x86_64-unknown-linux-gnu", "x86_64-pc-windows-gnu" ]
