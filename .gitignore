@@ -5,3 +5,7 @@ target/
 # REFERENCE: flake.nix shellHook
 .cargo
 .rustup
+
+# Production environment variables
+# See .env.example for examples
+.env
