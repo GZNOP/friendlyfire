@@ -27,17 +27,18 @@ fn main() {
     let store = Arc::new(RwLock::new(MockStore::default()));
     let server_store = store.clone();
 
-    tokio::runtime::Builder::new_multi_thread()
+    let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
-        .unwrap()
-        .spawn(async move {
-            info!("Starting HTTP server on 0.0.0.0:4646");
-            HTTPServer::new(server_store)
-                .serve("0.0.0.0:4646")
-                .await
-                .unwrap();
-        });
+        .unwrap();
+
+    rt.spawn(async move {
+        info!("Starting HTTP server on 0.0.0.0:4646");
+        HTTPServer::new(server_store)
+            .serve("0.0.0.0:4646")
+            .await
+            .unwrap();
+    });
 
     eframe::run_native(
         "FriendlyFire Debug",
