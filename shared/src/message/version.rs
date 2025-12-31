@@ -20,11 +20,17 @@ pub struct Version {
 }
 
 impl Version {
-    fn new(major: u8, minor: u8, patch: u8) -> Self {
+    pub fn current() -> Self {
+        let version_str = env!("CARGO_PKG_VERSION");
+        let parts: Vec<u8> = version_str
+            .split('.')
+            .map(|p| p.parse::<u8>().unwrap_or(0))
+            .collect();
+
         Self {
-            major,
-            minor,
-            patch,
+            major: *parts.first().unwrap_or(&0),
+            minor: *parts.get(1).unwrap_or(&0),
+            patch: *parts.get(2).unwrap_or(&0),
         }
     }
 }
