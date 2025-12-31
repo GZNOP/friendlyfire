@@ -1,28 +1,49 @@
+mod gui;
 mod http;
 mod invitation;
 mod jwt;
 mod party;
 mod store;
+mod tests;
 mod user;
 
-use anyhow::Result;
+use std::sync::Arc;
+
 use dotenv::dotenv;
+use eframe::NativeOptions;
 use env_logger::Env;
 use log::info;
+use tokio::sync::RwLock;
 
-use crate::{http::HTTPServer, store::MockStore};
+use crate::{gui::DebugApp, http::HTTPServer, store::MockStore};
 
 fn init_logging() {
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() {
     init_logging();
-    dotenv()?;
+    dotenv().unwrap();
 
-    let server = HTTPServer::new(MockStore::debug_new());
+    let store = Arc::new(RwLock::new(MockStore::default()));
+    let server_store = store.clone();
 
-    info!("Starting HTTP server on 0.0.0.0:4646");
-    server.serve("0.0.0.0:4646").await
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+        .spawn(async move {
+            info!("Starting HTTP server on 0.0.0.0:4646");
+            HTTPServer::new(server_store)
+                .serve("0.0.0.0:4646")
+                .await
+                .unwrap();
+        });
+
+    eframe::run_native(
+        "FriendlyFire Debug",
+        NativeOptions::default(),
+        Box::new(|_cc| Ok(Box::new(DebugApp::new(store.clone())))),
+    )
+    .unwrap();
 }

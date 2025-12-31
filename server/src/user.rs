@@ -10,7 +10,7 @@ pub type AuthToken = Uuid;
 pub struct User {
     pub id: UserId,
     pub email: String,
-    username: String,
+    pub username: String,
     pub created_at: Instant,
     pub password_hash: String,
 }

@@ -29,21 +29,15 @@ use crate::{
     user::User,
 };
 
-struct AppState {
-    store: RwLock<MockStore>,
-}
+type AppState = RwLock<MockStore>;
 
 pub struct HTTPServer {
     state: Arc<AppState>,
 }
 
 impl HTTPServer {
-    pub fn new(store: MockStore) -> Self {
-        Self {
-            state: Arc::new(AppState {
-                store: RwLock::new(store),
-            }),
-        }
+    pub fn new(state: Arc<RwLock<MockStore>>) -> Self {
+        Self { state }
     }
 
     pub async fn serve(self, addr: &str) -> Result<()> {
@@ -76,7 +70,7 @@ async fn login(
     State(state): State<Arc<AppState>>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<TokenResponse>, StatusCode> {
-    let store = state.store.read().await;
+    let store = state.read().await;
     let user = store
         .get_user_by_email(&payload.email)
         .ok_or(StatusCode::UNAUTHORIZED)?;
@@ -118,7 +112,7 @@ async fn register(
     };
 
     let user = User::new(payload.email, payload.username, password_hash);
-    let mut store = state.store.write().await;
+    let mut store = state.write().await;
 
     if store.create_user(user.clone()).is_err() {
         return StatusCode::UNAUTHORIZED;
@@ -157,7 +151,7 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>, request: Req
     let user_id = jwt.claims.user_id();
 
     let sender = {
-        let store = state.store.read().await;
+        let store = state.read().await;
         store.get_user_by_id(user_id).unwrap().clone()
     };
 
@@ -172,7 +166,7 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>, request: Req
 
                 match message.kind {
                     ClientMessageType::CreateParty => {
-                        let mut store = state.store.write().await;
+                        let mut store = state.write().await;
                         store.create_party(Party::create(&sender)).unwrap();
 
                         let reply = ServerMessage::party_created(server_info.clone());
@@ -183,7 +177,7 @@ async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>, request: Req
                     }
 
                     ClientMessageType::JoinParty { invitation_token } => {
-                        let mut store = state.store.write().await;
+                        let mut store = state.write().await;
                         let invitation = store.consume_invitation(invitation_token);
 
                         match invitation {

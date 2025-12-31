@@ -8,6 +8,7 @@ use argon2::{
 use tokio::{sync::RwLock, time::Instant};
 
 use crate::{
+    gui::DebugSnapshot,
     invitation::{Invitation, InvitationToken},
     party::{Party, PartyId, Role},
     user::{User, UserId},

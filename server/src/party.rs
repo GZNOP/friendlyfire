@@ -9,7 +9,7 @@ pub type PartyId = Uuid;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Party {
     pub id: PartyId,
-    creator: User,
+    pub creator: User,
     /// Users that have joined this party
     pub members: HashMap<UserId, Role>,
 }
