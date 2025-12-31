@@ -21,7 +21,7 @@ mod window;
 fn receive_mock_message() -> ff::ServerMessage {
     ff::ServerMessage {
         version: ff::Version::from_str("0.1.0").unwrap(),
-        sender: ff::SenderInfo { id: Uuid::new_v4() },
+        sender: Some(ff::SenderInfo { id: Uuid::new_v4() }),
         kind: ff::ServerMessageType::Overlays {
             overlays: vec![
                 LibOverlay::AnimatedImage {

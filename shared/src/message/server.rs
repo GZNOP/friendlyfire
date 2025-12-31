@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{DisplayOptions, Overlay, message::version::Version};
+use crate::{
+    DisplayOptions, Overlay,
+    message::{builder::MessageBuilder, version::Version},
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 /// Top-level message emitted by the server
@@ -10,7 +13,11 @@ pub struct ServerMessage {
     /// Friendlyfire protocol version of the server used to send the message.
     /// Used to detect incompatibilities between client and server.
     pub version: Version,
-    pub sender: SenderInfo,
+
+    /// Information about the sender of the original message that induced this one.
+    /// Some when it is a reply to a `ClientMessage`.
+    /// None when the server sends a standalone message.
+    pub sender: Option<SenderInfo>,
 
     // Flattened to avoid a "kind" object in the message that isn't really useful.
     /// Actual message payload.
@@ -20,10 +27,9 @@ pub struct ServerMessage {
 
 // TODO : Could be expanded a subset of `User` attributes.
 // `let senderInfo = User.into()` should be possible
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SenderInfo {
     /// Stable server-assigned identifier of the sender.
-    // TODO : Link this to `UserId` ?
     pub id: Uuid,
 }
 
@@ -35,6 +41,13 @@ pub struct SenderInfo {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type")]
 pub enum ServerMessageType {
+    AuthOk,
+
+    RegisterOk {
+        /// Newly create JWT token
+        jwt: String,
+    },
+
     /// Response to `ClientMessageType::CreateParty`
     /// Confirms party creation and assigns creator(same as admin) privileges to the requesting client.
     PartyCreated,
@@ -42,6 +55,12 @@ pub enum ServerMessageType {
     /// Response to `ClientMessageType::JoinParty`
     /// This tells the client he successfully joined the given `Party`
     JoinAccepted,
+
+    /// Response to `ClientMessageType::CreateInvitationToken`
+    /// This tells the client he successfully joined the given `Party`
+    InvitationTokenCreated {
+        token: Uuid,
+    },
 
     /// Relay of the `ClientMessageType::Overlays`
     /// Contains the full set of overlays to be displayed along with metadata in `options` to adjust the displaying.
@@ -64,5 +83,113 @@ pub enum ServerMessageType {
 
     /// Error emitted by the server.
     /// Indicates a rejected client action or a server error.
-    Error { message: String },
+    Error {
+        message: String,
+    },
+}
+
+impl ServerMessage {
+    fn system() -> ServerMessageBuilder {
+        ServerMessageBuilder {
+            version: Version::current(),
+            sender: None,
+            kind: None,
+        }
+    }
+
+    // sender should be Some
+    fn relay(sender: SenderInfo) -> ServerMessageBuilder {
+        ServerMessageBuilder {
+            version: Version::current(),
+            sender: Some(sender),
+            kind: None,
+        }
+    }
+
+    //
+    // Shortcuts utils
+    //
+
+    pub fn auth_ok(sender: SenderInfo) -> Self {
+        Self::relay(sender).kind(ServerMessageType::AuthOk).build()
+    }
+
+    pub fn register_ok(sender: SenderInfo, jwt: String) -> Self {
+        Self::relay(sender)
+            .kind(ServerMessageType::RegisterOk { jwt })
+            .build()
+    }
+
+    pub fn party_created(sender: SenderInfo) -> Self {
+        Self::relay(sender)
+            .kind(ServerMessageType::PartyCreated)
+            .build()
+    }
+
+    pub fn join_accepted(sender: SenderInfo) -> Self {
+        Self::relay(sender)
+            .kind(ServerMessageType::JoinAccepted)
+            .build()
+    }
+
+    pub fn invitation_token(sender: SenderInfo, token: Uuid) -> Self {
+        Self::relay(sender)
+            .kind(ServerMessageType::InvitationTokenCreated { token })
+            .build()
+    }
+
+    pub fn overlays(sender: SenderInfo, overlays: Vec<Overlay>, options: DisplayOptions) -> Self {
+        Self::relay(sender)
+            .kind(ServerMessageType::Overlays { overlays, options })
+            .build()
+    }
+
+    pub fn overlays_full_ack(sender: SenderInfo) -> Self {
+        Self::relay(sender)
+            .kind(ServerMessageType::OverlaysFullAck)
+            .build()
+    }
+
+    pub fn rasterization_full_ack(sender: SenderInfo) -> Self {
+        Self::relay(sender)
+            .kind(ServerMessageType::RasterizationFullAck)
+            .build()
+    }
+
+    pub fn fire(sender: SenderInfo) -> Self {
+        Self::relay(sender).kind(ServerMessageType::Fire).build()
+    }
+
+    // Weird name, but at least there is no conflict
+    pub fn error_message(message: impl Into<String>) -> Self {
+        Self::system()
+            .kind(ServerMessageType::Error {
+                message: message.into(),
+            })
+            .build()
+    }
+}
+
+struct ServerMessageBuilder {
+    version: Version,
+    sender: Option<SenderInfo>,
+    kind: Option<ServerMessageType>,
+}
+
+impl MessageBuilder for ServerMessageBuilder {
+    type Message = ServerMessage;
+    type MessageKind = ServerMessageType;
+
+    fn kind(mut self, kind: ServerMessageType) -> Self {
+        self.kind = Some(kind);
+        self
+    }
+
+    fn build(self) -> ServerMessage {
+        ServerMessage {
+            version: self.version,
+            sender: self.sender,
+            kind: self.kind.expect("Message kind must be set"),
+        }
+    }
 }

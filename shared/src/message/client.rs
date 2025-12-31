@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{DisplayOptions, Overlay, message::version::Version};
+use crate::{
+    DisplayOptions, Overlay,
+    message::{builder::MessageBuilder, version::Version},
+};
 
 /// Top-level message sent by a client to the server.
 ///
@@ -36,12 +39,12 @@ pub enum ClientMessageType {
     /// Permission checks (e.g. admin rights) are enforced server-side.
     DisbandParty { party_id: Uuid },
 
-    /// Request to join a party using an invitation link.
-    JoinParty { invitation_link: String },
+    /// Request to join a party using an invitation token.
+    JoinParty { invitation_token: Uuid },
 
-    /// Request generation of a new invitation link for a given party.
+    /// Request generation of a new invitation token for a given party.
     /// Restricted to `User` with `role` of `Role::Admin` or `Role::Creator`.
-    CreateInvationLink { party_id: Uuid },
+    CreateInvitationToken { party_id: Uuid },
 
     /// Broadcast a set of overlays through the server.
     Overlays {
@@ -63,4 +66,39 @@ pub enum ClientMessageType {
 
     /// Error emitted by the client.
     Error { message: String },
+}
+
+impl ClientMessage {
+    fn new() -> ClientMessageBuilder {
+        ClientMessageBuilder {
+            version: Version::current(),
+            kind: None,
+        }
+    }
+
+    //
+    // Shortcuts utils
+    //
+}
+
+struct ClientMessageBuilder {
+    version: Version,
+    kind: Option<ClientMessageType>,
+}
+
+impl MessageBuilder for ClientMessageBuilder {
+    type Message = ClientMessage;
+    type MessageKind = ClientMessageType;
+
+    fn kind(mut self, kind: ClientMessageType) -> Self {
+        self.kind = Some(kind);
+        self
+    }
+
+    fn build(self) -> ClientMessage {
+        ClientMessage {
+            version: self.version,
+            kind: self.kind.expect("Message kind must be set"),
+        }
+    }
 }
