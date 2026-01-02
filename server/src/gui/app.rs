@@ -140,6 +140,8 @@ impl eframe::App for DebugApp {
             self.parties_section(ui, &snapshot.parties);
             self.invitations_section(ui, &snapshot.invitations);
         });
+
+        ctx.request_repaint_after(std::time::Duration::from_secs(1));
     }
 }
 
