@@ -60,6 +60,7 @@ impl From<&MediaItem> for LayoutItem {
 #[derive(Default)]
 pub struct DebugApp {
     items: Vec<MediaItem>,
+    selected_item: Option<usize>,
 }
 
 impl eframe::App for DebugApp {
@@ -82,12 +83,16 @@ impl eframe::App for DebugApp {
         egui::CentralPanel::default()
             .frame(egui::Frame::default().fill(egui::Color32::TRANSPARENT))
             .show(ctx, |ui| {
-                for item in &mut self.items {
+                for (i, item) in self.items.iter_mut().enumerate() {
                     let rect = egui::Rect::from_min_size(item.pos, item.size);
-                    let response = ui.allocate_rect(rect, egui::Sense::drag());
+                    let response = ui.allocate_rect(rect, egui::Sense::click_and_drag());
 
                     if response.dragged() {
                         item.pos += response.drag_delta();
+                    }
+
+                    if response.clicked() {
+                        self.selected_item = Some(i);
                     }
 
                     ui.painter().image(
@@ -96,10 +101,18 @@ impl eframe::App for DebugApp {
                         egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
                         egui::Color32::WHITE,
                     );
+
+                    if self.selected_item == Some(i) {
+                        println!("Selected item : {}", i);
+                        ui.painter().rect_stroke(
+                            rect,
+                            0.0,
+                            egui::Stroke::new(1.0, egui::Color32::LIGHT_BLUE),
+                            egui::StrokeKind::Outside,
+                        );
+                    }
                 }
             });
-
-        ctx.request_repaint_after(std::time::Duration::from_secs(1));
     }
 }
 
