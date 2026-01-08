@@ -75,6 +75,13 @@ impl eframe::App for DebugApp {
                 self.items.push(MediaItem::new(path, ctx));
             }
 
+            if ui.button("Delete selected").clicked()
+                && let Some(i) = self.selected_item
+            {
+                self.items.remove(i);
+                self.selected_item = None;
+            }
+
             if ui.button("Export").clicked() {
                 let layout: Vec<LayoutItem> = self.items.iter().map(LayoutItem::from).collect();
             }
