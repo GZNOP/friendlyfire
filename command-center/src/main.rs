@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 
+const HANDLE_SIZE: f32 = 10.0;
+
 struct MediaItem {
     path: PathBuf,
     pos: egui::Pos2,
@@ -63,6 +65,17 @@ pub struct DebugApp {
     selected_item: Option<usize>,
 }
 
+fn resize_handles(rect: egui::Rect) -> [egui::Rect; 4] {
+    let hs = egui::vec2(HANDLE_SIZE, HANDLE_SIZE);
+
+    [
+        egui::Rect::from_min_size(rect.left_top(), hs), // TL
+        egui::Rect::from_min_size(rect.right_top() - hs, hs), // TR
+        egui::Rect::from_min_size(rect.left_bottom() - egui::vec2(0.0, HANDLE_SIZE), hs), // BL
+        egui::Rect::from_min_size(rect.right_bottom() - hs, hs), // BR
+    ]
+}
+
 impl eframe::App for DebugApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         egui_extras::install_image_loaders(ctx);
@@ -117,6 +130,47 @@ impl eframe::App for DebugApp {
                             egui::Stroke::new(1.0, egui::Color32::LIGHT_BLUE),
                             egui::StrokeKind::Outside,
                         );
+
+                        for (handle_index, handle_rect) in
+                            resize_handles(rect).into_iter().enumerate()
+                        {
+                            let response = ui.allocate_rect(handle_rect, egui::Sense::drag());
+
+                            ui.painter()
+                                .rect_filled(handle_rect, 2.0, egui::Color32::YELLOW);
+
+                            if response.dragged() {
+                                let delta = response.drag_delta();
+
+                                match handle_index {
+                                    0 => {
+                                        // TL
+                                        item.pos += delta;
+                                        item.size -= delta;
+                                    }
+                                    1 => {
+                                        // TR
+                                        item.pos.y += delta.y;
+                                        item.size.x += delta.x;
+                                        item.size.y -= delta.y;
+                                    }
+                                    2 => {
+                                        // BL
+                                        item.pos.x += delta.x;
+                                        item.size.x -= delta.x;
+                                        item.size.y += delta.y;
+                                    }
+                                    3 => {
+                                        // BR
+                                        item.size += delta;
+                                    }
+                                    _ => {}
+                                }
+
+                                item.size.x = item.size.x.max(20.0);
+                                item.size.y = item.size.y.max(20.0);
+                            }
+                        }
                     }
                 }
             });
