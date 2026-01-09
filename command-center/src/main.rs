@@ -68,11 +68,31 @@ pub struct DebugApp {
 fn resize_handles(rect: egui::Rect) -> [egui::Rect; 4] {
     let hs = egui::vec2(HANDLE_SIZE, HANDLE_SIZE);
 
+    let top_left = egui::Pos2::new(
+        rect.left() - (HANDLE_SIZE / 2.0),
+        rect.top() - (HANDLE_SIZE / 2.0),
+    );
+
+    let top_right = egui::Pos2::new(
+        rect.right() - (HANDLE_SIZE / 2.0),
+        rect.top() - (HANDLE_SIZE / 2.0),
+    );
+
+    let bottom_left = egui::Pos2::new(
+        rect.left() - (HANDLE_SIZE / 2.0),
+        rect.bottom() - (HANDLE_SIZE / 2.0),
+    );
+
+    let bottom_right = egui::Pos2::new(
+        rect.right() - (HANDLE_SIZE / 2.0),
+        rect.bottom() - (HANDLE_SIZE / 2.0),
+    );
+
     [
-        egui::Rect::from_min_size(rect.left_top(), hs), // TL
-        egui::Rect::from_min_size(rect.right_top() - hs, hs), // TR
-        egui::Rect::from_min_size(rect.left_bottom() - egui::vec2(0.0, HANDLE_SIZE), hs), // BL
-        egui::Rect::from_min_size(rect.right_bottom() - hs, hs), // BR
+        egui::Rect::from_min_size(top_left, hs),
+        egui::Rect::from_min_size(top_right, hs),
+        egui::Rect::from_min_size(bottom_left, hs),
+        egui::Rect::from_min_size(bottom_right, hs),
     ]
 }
 
