@@ -36,6 +36,14 @@ impl ResizeHandle {
         egui::Rect::from_min_size(pos, hs)
     }
 
+    /// Give the right mouse cursor for each ResizeHandle
+    pub fn cursor(self) -> egui::CursorIcon {
+        match self {
+            Self::TopLeft | Self::BottomRight => egui::CursorIcon::ResizeNwSe,
+            Self::TopRight | Self::BottomLeft => egui::CursorIcon::ResizeNeSw,
+        }
+    }
+
     /// Apply a resizing delta to a size and position
     pub fn apply(self, pos: &mut egui::Pos2, size: &mut egui::Vec2, delta: egui::Vec2) {
         match self {

@@ -87,6 +87,7 @@ pub struct DebugApp {
     selected_item: Option<usize>,
 }
 
+/// Implementation of the resize module in the main App
 fn resize_ui(ui: &mut egui::Ui, item: &mut MediaItem) {
     let rect = item.rect();
 
@@ -100,6 +101,8 @@ fn resize_ui(ui: &mut egui::Ui, item: &mut MediaItem) {
         if response.dragged() {
             handle.apply(&mut item.pos, &mut item.size, response.drag_delta());
         }
+
+        response.on_hover_cursor(handle.cursor());
     }
 }
 
