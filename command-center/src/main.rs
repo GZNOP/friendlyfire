@@ -58,6 +58,10 @@ impl MediaItem {
             egui::StrokeKind::Outside,
         );
     }
+
+    fn aspect_ratio(&self) -> f32 {
+        self.size.x / self.size.y
+    }
 }
 
 #[derive(Serialize)]
@@ -91,6 +95,9 @@ pub struct DebugApp {
 fn resize_ui(ui: &mut egui::Ui, item: &mut MediaItem) {
     let rect = item.rect();
 
+    let aspect = item.aspect_ratio();
+    let lock_aspect = ui.input(|i| i.modifiers.shift);
+
     for handle in resize::ResizeHandle::all() {
         let handle_rect = handle.rect(rect);
         let response = ui.allocate_rect(handle_rect, egui::Sense::drag());
@@ -99,7 +106,13 @@ fn resize_ui(ui: &mut egui::Ui, item: &mut MediaItem) {
             .rect_filled(handle_rect, 2.0, egui::Color32::YELLOW);
 
         if response.dragged() {
-            handle.apply(&mut item.pos, &mut item.size, response.drag_delta());
+            handle.apply(
+                &mut item.pos,
+                &mut item.size,
+                response.drag_delta(),
+                aspect,
+                lock_aspect,
+            );
         }
 
         response.on_hover_cursor(handle.cursor());

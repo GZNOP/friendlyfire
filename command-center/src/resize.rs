@@ -45,7 +45,24 @@ impl ResizeHandle {
     }
 
     /// Apply a resizing delta to a size and position
-    pub fn apply(self, pos: &mut egui::Pos2, size: &mut egui::Vec2, delta: egui::Vec2) {
+    pub fn apply(
+        self,
+        pos: &mut egui::Pos2,
+        size: &mut egui::Vec2,
+        delta: egui::Vec2,
+        aspect_ratio: f32,
+        lock_aspect: bool,
+    ) {
+        let mut delta = delta;
+
+        if lock_aspect {
+            if delta.x.abs() > delta.y.abs() {
+                delta.y = delta.x / aspect_ratio;
+            } else {
+                delta.x = delta.y * aspect_ratio;
+            }
+        }
+
         match self {
             Self::TopLeft => {
                 *pos += delta;
