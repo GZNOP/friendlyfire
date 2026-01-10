@@ -1,8 +1,8 @@
+mod resize;
+
 use std::path::PathBuf;
 
 use serde::Serialize;
-
-const HANDLE_SIZE: f32 = 10.0;
 
 struct MediaItem {
     path: PathBuf,
@@ -36,6 +36,28 @@ impl MediaItem {
             texture,
         }
     }
+
+    fn rect(&self) -> egui::Rect {
+        egui::Rect::from_min_size(self.pos, self.size)
+    }
+
+    fn draw(&self, ui: &egui::Ui) {
+        ui.painter().image(
+            self.texture.id(),
+            self.rect(),
+            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
+            egui::Color32::WHITE,
+        );
+    }
+
+    fn draw_selection(&self, ui: &egui::Ui) {
+        ui.painter().rect_stroke(
+            self.rect(),
+            0.0,
+            egui::Stroke::new(1.0, egui::Color32::LIGHT_BLUE),
+            egui::StrokeKind::Outside,
+        );
+    }
 }
 
 #[derive(Serialize)]
@@ -65,35 +87,20 @@ pub struct DebugApp {
     selected_item: Option<usize>,
 }
 
-fn resize_handles(rect: egui::Rect) -> [egui::Rect; 4] {
-    let hs = egui::vec2(HANDLE_SIZE, HANDLE_SIZE);
+fn resize_ui(ui: &mut egui::Ui, item: &mut MediaItem) {
+    let rect = item.rect();
 
-    let top_left = egui::Pos2::new(
-        rect.left() - (HANDLE_SIZE / 2.0),
-        rect.top() - (HANDLE_SIZE / 2.0),
-    );
+    for handle in resize::ResizeHandle::all() {
+        let handle_rect = handle.rect(rect);
+        let response = ui.allocate_rect(handle_rect, egui::Sense::drag());
 
-    let top_right = egui::Pos2::new(
-        rect.right() - (HANDLE_SIZE / 2.0),
-        rect.top() - (HANDLE_SIZE / 2.0),
-    );
+        ui.painter()
+            .rect_filled(handle_rect, 2.0, egui::Color32::YELLOW);
 
-    let bottom_left = egui::Pos2::new(
-        rect.left() - (HANDLE_SIZE / 2.0),
-        rect.bottom() - (HANDLE_SIZE / 2.0),
-    );
-
-    let bottom_right = egui::Pos2::new(
-        rect.right() - (HANDLE_SIZE / 2.0),
-        rect.bottom() - (HANDLE_SIZE / 2.0),
-    );
-
-    [
-        egui::Rect::from_min_size(top_left, hs),
-        egui::Rect::from_min_size(top_right, hs),
-        egui::Rect::from_min_size(bottom_left, hs),
-        egui::Rect::from_min_size(bottom_right, hs),
-    ]
+        if response.dragged() {
+            handle.apply(&mut item.pos, &mut item.size, response.drag_delta());
+        }
+    }
 }
 
 impl eframe::App for DebugApp {
@@ -124,7 +131,7 @@ impl eframe::App for DebugApp {
             .frame(egui::Frame::default().fill(egui::Color32::TRANSPARENT))
             .show(ctx, |ui| {
                 for (i, item) in self.items.iter_mut().enumerate() {
-                    let rect = egui::Rect::from_min_size(item.pos, item.size);
+                    let rect = item.rect();
                     let response = ui.allocate_rect(rect, egui::Sense::click_and_drag());
 
                     if response.dragged() {
@@ -135,62 +142,11 @@ impl eframe::App for DebugApp {
                         self.selected_item = Some(i);
                     }
 
-                    ui.painter().image(
-                        item.texture.id(),
-                        rect,
-                        egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-                        egui::Color32::WHITE,
-                    );
+                    item.draw(ui);
 
                     if self.selected_item == Some(i) {
-                        println!("Selected item : {}", i);
-                        ui.painter().rect_stroke(
-                            rect,
-                            0.0,
-                            egui::Stroke::new(1.0, egui::Color32::LIGHT_BLUE),
-                            egui::StrokeKind::Outside,
-                        );
-
-                        for (handle_index, handle_rect) in
-                            resize_handles(rect).into_iter().enumerate()
-                        {
-                            let response = ui.allocate_rect(handle_rect, egui::Sense::drag());
-
-                            ui.painter()
-                                .rect_filled(handle_rect, 2.0, egui::Color32::YELLOW);
-
-                            if response.dragged() {
-                                let delta = response.drag_delta();
-
-                                match handle_index {
-                                    0 => {
-                                        // TL
-                                        item.pos += delta;
-                                        item.size -= delta;
-                                    }
-                                    1 => {
-                                        // TR
-                                        item.pos.y += delta.y;
-                                        item.size.x += delta.x;
-                                        item.size.y -= delta.y;
-                                    }
-                                    2 => {
-                                        // BL
-                                        item.pos.x += delta.x;
-                                        item.size.x -= delta.x;
-                                        item.size.y += delta.y;
-                                    }
-                                    3 => {
-                                        // BR
-                                        item.size += delta;
-                                    }
-                                    _ => {}
-                                }
-
-                                item.size.x = item.size.x.max(20.0);
-                                item.size.y = item.size.y.max(20.0);
-                            }
-                        }
+                        item.draw_selection(ui);
+                        resize_ui(ui, item);
                     }
                 }
             });
