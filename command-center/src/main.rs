@@ -1,98 +1,15 @@
+mod export;
+mod media;
 mod resize;
-
-use std::path::PathBuf;
-
-use serde::Serialize;
-
-struct MediaItem {
-    path: PathBuf,
-    pos: egui::Pos2,
-    size: egui::Vec2,
-    texture: egui::TextureHandle,
-}
-
-impl MediaItem {
-    fn new(path: PathBuf, ctx: &egui::Context) -> Self {
-        let image = image::ImageReader::open(path.clone())
-            .unwrap()
-            .with_guessed_format()
-            .unwrap()
-            .decode()
-            .unwrap();
-        let size: [usize; 2] = [image.width() as usize, image.height() as usize];
-        let image_buffer = image.to_rgba8();
-        let pixels = image_buffer.as_flat_samples();
-
-        let texture = ctx.load_texture(
-            path.file_name().unwrap().to_string_lossy(),
-            egui::ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()),
-            egui::TextureOptions::default(),
-        );
-
-        Self {
-            path,
-            pos: egui::Pos2::default(),
-            size: egui::vec2(image.width() as f32, image.height() as f32),
-            texture,
-        }
-    }
-
-    fn rect(&self) -> egui::Rect {
-        egui::Rect::from_min_size(self.pos, self.size)
-    }
-
-    fn draw(&self, ui: &egui::Ui) {
-        ui.painter().image(
-            self.texture.id(),
-            self.rect(),
-            egui::Rect::from_min_max(egui::pos2(0.0, 0.0), egui::pos2(1.0, 1.0)),
-            egui::Color32::WHITE,
-        );
-    }
-
-    fn draw_selection(&self, ui: &egui::Ui) {
-        ui.painter().rect_stroke(
-            self.rect(),
-            0.0,
-            egui::Stroke::new(1.0, egui::Color32::LIGHT_BLUE),
-            egui::StrokeKind::Outside,
-        );
-    }
-
-    fn aspect_ratio(&self) -> f32 {
-        self.size.x / self.size.y
-    }
-}
-
-#[derive(Serialize)]
-struct LayoutItem {
-    path: String,
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
-}
-
-impl From<&MediaItem> for LayoutItem {
-    fn from(item: &MediaItem) -> Self {
-        Self {
-            path: item.path.clone().into_os_string().into_string().unwrap(),
-            x: item.pos.x,
-            y: item.pos.y,
-            w: item.size.x,
-            h: item.size.y,
-        }
-    }
-}
 
 #[derive(Default)]
 pub struct DebugApp {
-    items: Vec<MediaItem>,
+    items: Vec<media::MediaItem>,
     selected_item: Option<usize>,
 }
 
 /// Implementation of the resize module in the main App
-fn resize_ui(ui: &mut egui::Ui, item: &mut MediaItem) {
+fn resize_ui(ui: &mut egui::Ui, item: &mut media::MediaItem) {
     let rect = item.rect();
 
     let aspect = item.aspect_ratio();
@@ -128,7 +45,7 @@ impl eframe::App for DebugApp {
             if ui.button("Add media").clicked()
                 && let Some(path) = rfd::FileDialog::new().pick_file()
             {
-                self.items.push(MediaItem::new(path, ctx));
+                self.items.push(media::MediaItem::new(path, ctx));
             }
 
             if ui.button("Delete selected").clicked()
@@ -139,7 +56,8 @@ impl eframe::App for DebugApp {
             }
 
             if ui.button("Export").clicked() {
-                let layout: Vec<LayoutItem> = self.items.iter().map(LayoutItem::from).collect();
+                let layout: Vec<export::LayoutItem> =
+                    self.items.iter().map(export::LayoutItem::from).collect();
             }
         });
 
