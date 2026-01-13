@@ -27,7 +27,29 @@
         cc = builtins.mapAttrs
           (name: value: "${value}/bin/${targetName.${name}}-cc") ccPkgs;
       in pkgs.mkShell {
-        buildInputs = [ pkgs.rustup ] ++ builtins.attrValues ccPkgs;
+        nativeBuildInputs = with pkgs; [
+          pkg-config
+          gobject-introspection
+          cargo
+          nodejs
+          pnpm
+        ];
+
+        buildInputs = [
+          pkgs.rustup
+          pkgs.at-spi2-atk
+          pkgs.atkmm
+          pkgs.cairo
+          pkgs.gdk-pixbuf
+          pkgs.glib
+          pkgs.gtk3
+          pkgs.harfbuzz
+          pkgs.librsvg
+          pkgs.libsoup_3
+          pkgs.pango
+          pkgs.webkitgtk_4_1
+          pkgs.openssl
+        ] ++ builtins.attrValues ccPkgs;
 
         # Set the default target to the first available target
         CARGO_BUILD_TARGET = let
