@@ -67,6 +67,10 @@
           builtins.map (a: "-L ${a}/lib") [ pkgsCross.mingw.windows.pthreads ];
 
         shellHook = ''
+          # Fix for https://github.com/tauri-apps/tauri/issues/14187
+          export XDG_DATA_DIRS=${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:$XDG_DATA_DIRS;
+          export GIO_MODULE_DIR="${pkgs.glib-networking}/lib/gio/modules/";
+
           # Avoid polluting home directory
           export RUSTUP_HOME=$(pwd)/.rustup/
           export CARGO_HOME=$(pwd)/.cargo/
