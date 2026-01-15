@@ -55,27 +55,46 @@ impl ResizeHandle {
     ) {
         let mut delta = delta;
 
+        // if shift button is pressed
         if lock_aspect {
+            // the aspect_ratio value must not change a lot, so we change delta values
             if delta.x.abs() > delta.y.abs() {
                 delta.y = delta.x / aspect_ratio;
             } else {
-                delta.x = delta.y * aspect_ratio;
+                delta.y = delta.x * aspect_ratio;
+            }
+            // for the direction BottomLeft <--> TopRight we must reverse the value of delta.y
+            match self {
+                Self::BottomLeft | Self::TopRight => {
+                    delta.y = -delta.y;
+                }
+                _ => {}              
             }
         }
 
         match self {
             Self::TopLeft => {
-                *pos += delta;
-                *size -= delta;
-            }
+                if size.x - delta.x >= MIN_SIZE {
+                    size.x -= delta.x;
+                    pos.x += delta.x; 
+                }
+                if size.y - delta.y >= MIN_SIZE {
+                    size.y -= delta.y;
+                    pos.y += delta.y;
+                }
+            }                
             Self::TopRight => {
-                pos.y += delta.y;
+                if size.y - delta.y >= MIN_SIZE {
+                    size.y -= delta.y;
+                    pos.y += delta.y;
+                }
                 size.x += delta.x;
-                size.y -= delta.y;
             }
             Self::BottomLeft => {
-                pos.x += delta.x;
-                size.x -= delta.x;
+                if size.x - delta.x >= MIN_SIZE {
+                    size.x -= delta.x;
+                    pos.x += delta.x;
+                }
                 size.y += delta.y;
             }
             Self::BottomRight => {
