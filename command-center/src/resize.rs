@@ -57,51 +57,68 @@ impl ResizeHandle {
 
         // if shift button is pressed
         if lock_aspect {
-            // the aspect_ratio value must not change a lot, so we change delta values
-            if delta.x.abs() > delta.y.abs() {
-                delta.y = delta.x / aspect_ratio;
-            } else {
-                delta.y = delta.x * aspect_ratio;
-            }
-            // for the direction BottomLeft <--> TopRight we must reverse the value of delta.y
+            // Handle when shift button is pressed 
+            delta.y = delta.x / (size.x / size.y);
             match self {
-                Self::BottomLeft | Self::TopRight => {
-                    delta.y = -delta.y;
+                Self::TopLeft => {
+                    if size.x - delta.x >= MIN_SIZE && size.y - delta.y >= MIN_SIZE {
+                        *size -= delta;
+                        *pos += delta;
+                    }
                 }
-                _ => {}              
+                Self::TopRight => {
+                    if size.y + delta.y >= MIN_SIZE && size.x + delta.x >= MIN_SIZE {
+                        size.y += delta.y;
+                        pos.y -= delta.y;
+                        size.x += delta.x;
+                     }
+                }
+                Self::BottomLeft => {
+                    if size.x - delta.x >= MIN_SIZE && size.y - delta.y >= MIN_SIZE {
+                        size.x -= delta.x;
+                        pos.x += delta.x;
+                        size.y -= delta.y;
+                    }                   
+                }
+                Self::BottomRight => {
+                    if size.x + delta.x >= MIN_SIZE && size.y + delta.y >= MIN_SIZE {
+                        *size += delta;
+                    }
+                }
+            }
+        } else {
+            // Without shift button pressed (i.e. image stretching allowed)
+            match self {
+                Self::TopLeft => {
+                    if size.x - delta.x >= MIN_SIZE {
+                        size.x -= delta.x;
+                        pos.x += delta.x; 
+                    }
+                    if size.y - delta.y >= MIN_SIZE {
+                        size.y -= delta.y;
+                        pos.y += delta.y;
+                    }
+                }                
+                Self::TopRight => {
+                    if size.y - delta.y >= MIN_SIZE {
+                        size.y -= delta.y;
+                        pos.y += delta.y;
+                    }
+                    size.x += delta.x;
+                }
+                Self::BottomLeft => {
+                    if size.x - delta.x >= MIN_SIZE {
+                        size.x -= delta.x;
+                        pos.x += delta.x;
+                    }
+                    size.y += delta.y;
+                }
+                Self::BottomRight => {
+                    *size += delta;          
+                }
             }
         }
-
-        match self {
-            Self::TopLeft => {
-                if size.x - delta.x >= MIN_SIZE {
-                    size.x -= delta.x;
-                    pos.x += delta.x; 
-                }
-                if size.y - delta.y >= MIN_SIZE {
-                    size.y -= delta.y;
-                    pos.y += delta.y;
-                }
-            }                
-            Self::TopRight => {
-                if size.y - delta.y >= MIN_SIZE {
-                    size.y -= delta.y;
-                    pos.y += delta.y;
-                }
-                size.x += delta.x;
-            }
-            Self::BottomLeft => {
-                if size.x - delta.x >= MIN_SIZE {
-                    size.x -= delta.x;
-                    pos.x += delta.x;
-                }
-                size.y += delta.y;
-            }
-            Self::BottomRight => {
-                *size += delta;
-            }
-        }
-
+        
         size.x = size.x.max(MIN_SIZE);
         size.y = size.y.max(MIN_SIZE);
     }
