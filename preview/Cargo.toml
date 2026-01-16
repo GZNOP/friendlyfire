@@ -1,0 +1,28 @@
+[package]
+name = "friendlyfire-command-center"
+version = "0.1.0"
+edition = "2024"
+
+[profile.dev]
+opt-level = 0
+incremental = true
+codegen-units = 256
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[dependencies]
+anyhow = "1.0.100"
+eframe = "0.33.3"
+egui = "0.33.3"
+egui_extras = { version = "0.33.3", features = ["all_loaders"] }
+image = "0.25.9"
+log = "0.4.29"
+rfd = "0.17.1"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.148"
+tokio = { version = "1.49.0", features = ["full"] }
+tokio-tungstenite = "0.28.0"
+uuid = { version = "1.19.0", features = ["v4"] }
