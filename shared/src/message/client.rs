@@ -54,15 +54,15 @@ pub enum ClientMessageType {
 
     /// Acknowledge successful download of all overlays.
     /// See `ServerMessageType::OverlaysFullAck`, to see it's use.
-    OverlaysAck,
+    OverlaysAck { job_id: Uuid },
 
     /// Acknowledge successful rasterization of all overlays.
     /// See `ServerMessageType::RasterizationFullAck`, to see it's use.
-    RasterizationAck,
+    RasterizationAck { job_id: Uuid },
 
     /// Signal readiness to trigger the final action.
     /// The server decides if and when this becomes authoritative.
-    Fire,
+    Fire { party_id: Uuid, job_id: Uuid },
 
     /// Error emitted by the client.
     Error { message: String },

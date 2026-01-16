@@ -1,7 +1,18 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+pub type OverlayId = Uuid;
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+pub struct OverlayDescriptor {
+    pub id: OverlayId,
+    pub url: String,
+    pub filename: String,
+    pub size: u64,
+}
 
 /// Media that can be decoded/rasterized and composited onto a `Frame`.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 // Self-contained because they go through a different canal than traditionnal messages because of their size.
 // TODO : Add a timeout_ms, an overlay should be able to last not as long as the overall media.
 pub enum Overlay {
@@ -80,7 +91,7 @@ pub enum Overlay {
 }
 
 /// Global display parameters applied to a batch of overlays.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct DisplayOptions {
     /// Duration in milliseconds the overlay batch should remain visible.
     pub timeout_ms: u32,

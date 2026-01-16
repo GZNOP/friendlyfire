@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Follows `MAJOR.MINOR.PATCH` semantics.
 /// See https://semver.org/
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 pub struct Version {
     /// Gets increment when there are breaking changes in the protocol.
     /// Implies no backward compatibility with other `major` versions.

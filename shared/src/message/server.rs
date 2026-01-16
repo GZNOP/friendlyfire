@@ -2,11 +2,11 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::{
-    DisplayOptions, Overlay,
+    DisplayOptions, Overlay, OverlayDescriptor,
     message::{builder::MessageBuilder, version::Version},
 };
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 /// Top-level message emitted by the server
 /// Server messages are authoritative and should never be rejected or altered by clients
 pub struct ServerMessage {
@@ -27,10 +27,16 @@ pub struct ServerMessage {
 
 // TODO : Could be expanded a subset of `User` attributes.
 // `let senderInfo = User.into()` should be possible
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SenderInfo {
     /// Stable server-assigned identifier of the sender.
     pub id: Uuid,
+}
+
+impl SenderInfo {
+    pub fn new(id: Uuid) -> Self {
+        Self { id }
+    }
 }
 
 /// All possible server message kinds.
@@ -38,7 +44,7 @@ pub struct SenderInfo {
 /// When a `ClientMessageType` is received on the server it is always converted into a `ServerMessage` of the same enum value.
 /// e.g. : `ClientMessageType::Fire` becomes when he is relayed through the server `ServerMessageType::Fire`
 /// This garanties the message to be authoritative and right (no foul play by the client)
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(tag = "type")]
 pub enum ServerMessageType {
     AuthOk,
@@ -52,6 +58,11 @@ pub enum ServerMessageType {
     /// Confirms party creation and assigns creator(same as admin) privileges to the requesting client.
     PartyCreated,
 
+    /// Response to `ClientMessageType::DisbandParty`
+    /// Confirms party deletion.
+    /// NOTE : This can only be done by the party creator (see `Role::Creator`)
+    PartyDisbanded,
+
     /// Response to `ClientMessageType::JoinParty`
     /// This tells the client he successfully joined the given `Party`
     JoinAccepted,
@@ -62,10 +73,8 @@ pub enum ServerMessageType {
         token: Uuid,
     },
 
-    /// Relay of the `ClientMessageType::Overlays`
-    /// Contains the full set of overlays to be displayed along with metadata in `options` to adjust the displaying.
-    Overlays {
-        overlays: Vec<Overlay>,
+    OverlaysAvailable {
+        overlays: Vec<OverlayDescriptor>,
         options: DisplayOptions,
     },
 
@@ -79,7 +88,10 @@ pub enum ServerMessageType {
 
     /// Relay of the `ClientMessageType::Fire`
     /// Can only be sent once `OverlaysFullAck` and `RasterizationFullAck` have been emitted
-    Fire,
+    Fire {
+        party_id: Uuid,
+        job_id: Uuid,
+    },
 
     /// Error emitted by the server.
     /// Indicates a rejected client action or a server error.
@@ -126,6 +138,12 @@ impl ServerMessage {
             .build()
     }
 
+    pub fn party_disbanded(sender: SenderInfo) -> Self {
+        Self::relay(sender)
+            .kind(ServerMessageType::PartyDisbanded)
+            .build()
+    }
+
     pub fn join_accepted(sender: SenderInfo) -> Self {
         Self::relay(sender)
             .kind(ServerMessageType::JoinAccepted)
@@ -138,9 +156,13 @@ impl ServerMessage {
             .build()
     }
 
-    pub fn overlays(sender: SenderInfo, overlays: Vec<Overlay>, options: DisplayOptions) -> Self {
+    pub fn overlays_available(
+        sender: SenderInfo,
+        overlays: Vec<OverlayDescriptor>,
+        options: DisplayOptions,
+    ) -> Self {
         Self::relay(sender)
-            .kind(ServerMessageType::Overlays { overlays, options })
+            .kind(ServerMessageType::OverlaysAvailable { overlays, options })
             .build()
     }
 
@@ -156,8 +178,10 @@ impl ServerMessage {
             .build()
     }
 
-    pub fn fire(sender: SenderInfo) -> Self {
-        Self::relay(sender).kind(ServerMessageType::Fire).build()
+    pub fn fire(sender: SenderInfo, party_id: Uuid, job_id: Uuid) -> Self {
+        Self::relay(sender)
+            .kind(ServerMessageType::Fire { party_id, job_id })
+            .build()
     }
 
     // Weird name, but at least there is no conflict
