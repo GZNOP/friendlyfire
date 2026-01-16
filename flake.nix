@@ -30,7 +30,6 @@
         nativeBuildInputs = with pkgs; [
           pkg-config
           gobject-introspection
-          cargo
           nodejs
           pnpm
         ];
