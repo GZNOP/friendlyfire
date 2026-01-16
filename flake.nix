@@ -32,6 +32,7 @@
           gobject-introspection
           nodejs
           pnpm
+          prettier
         ];
 
         buildInputs = [
