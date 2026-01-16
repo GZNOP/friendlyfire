@@ -5,44 +5,22 @@ use argon2::{
     Argon2, PasswordHasher,
     password_hash::{SaltString, rand_core::OsRng},
 };
-use tokio::{sync::RwLock, time::Instant};
+use async_trait::async_trait;
+use tokio::time::Instant;
 
 use crate::{
-    invitation::{Invitation, InvitationToken},
-    party::{Party, PartyId, Role},
-    user::{User, UserId},
+    invitation::{Invitation, InvitationPersistence, InvitationToken},
+    party::{Party, PartyId, PartyPersistence, Role},
+    user::{User, UserId, UserPersistence},
 };
 
 #[async_trait::async_trait]
-pub trait Store: Send + Sync {
-    fn create_user(&mut self, user: User) -> anyhow::Result<()>;
-    fn get_user_by_id(&self, id: UserId) -> Option<&User>;
-    fn get_user_by_email(&self, email: &str) -> Option<&User>;
-    fn delete_user(&mut self, id: UserId) -> anyhow::Result<()>;
-
-    fn create_party(&mut self, party: Party) -> anyhow::Result<()>;
-    fn get_user_role(&self, user_id: UserId, party_id: PartyId) -> anyhow::Result<Role>;
-    fn get_party_by_id(&self, id: PartyId) -> Option<&Party>;
-    fn get_party_by_id_mut(&mut self, id: PartyId) -> Option<&mut Party>;
-    fn add_user_to_party(
-        &mut self,
-        user_id: UserId,
-        party_id: PartyId,
-        member_role: Role,
-    ) -> anyhow::Result<()>;
-    fn remove_user_from_party(&mut self, user_id: UserId, party_id: PartyId) -> anyhow::Result<()>;
-    fn delete_party(&mut self, party_id: PartyId) -> anyhow::Result<Party>;
-
-    fn create_invitation(&mut self, party_id: PartyId, ttl: Duration) -> InvitationToken;
-    fn consume_invitation(&mut self, token: InvitationToken) -> anyhow::Result<PartyId>;
-
+pub trait DebugStore: Send + Sync {
     // DEBUG functions
     fn create_fake_user(&mut self);
     fn create_fake_party(&mut self);
     fn create_fake_invitation(&mut self);
 }
-
-pub type SharedStore = Arc<RwLock<dyn Store>>;
 
 #[derive(Default)]
 pub struct MockStore {
@@ -51,9 +29,9 @@ pub struct MockStore {
     pub invitations: HashMap<InvitationToken, Invitation>,
 }
 
-#[async_trait::async_trait]
-impl Store for MockStore {
-    fn create_user(&mut self, user: User) -> anyhow::Result<()> {
+#[async_trait]
+impl UserPersistence for MockStore {
+    async fn create_user(&mut self, user: User) -> anyhow::Result<()> {
         // enforce unique email
         if self.users.values().any(|u| u.email == user.email) {
             bail!("email already exists");
@@ -63,22 +41,25 @@ impl Store for MockStore {
         Ok(())
     }
 
-    fn get_user_by_id(&self, id: UserId) -> Option<&User> {
+    async fn get_user_by_id(&self, id: UserId) -> Option<&User> {
         self.users.get(&id)
     }
 
-    fn get_user_by_email(&self, email: &str) -> Option<&User> {
+    async fn get_user_by_email(&self, email: &str) -> Option<&User> {
         self.users.values().find(|u| u.email == email)
     }
 
-    fn delete_user(&mut self, id: UserId) -> anyhow::Result<()> {
+    async fn delete_user(&mut self, id: UserId) -> anyhow::Result<()> {
         self.users
             .remove(&id)
             .ok_or_else(|| anyhow!("User could not be removed, as it didn't exist"))?;
         Ok(())
     }
+}
 
-    fn create_party(&mut self, party: Party) -> anyhow::Result<()> {
+#[async_trait]
+impl PartyPersistence for MockStore {
+    async fn create_party(&mut self, party: Party) -> anyhow::Result<()> {
         if self.parties.contains_key(&party.id) {
             return Err(anyhow!("Unable to create a party : party already exists"));
         }
@@ -87,8 +68,8 @@ impl Store for MockStore {
         Ok(())
     }
 
-    fn get_user_role(&self, user_id: UserId, party_id: PartyId) -> anyhow::Result<Role> {
-        let party = self.get_party_by_id(party_id).ok_or_else(|| {
+    async fn get_user_role(&self, user_id: UserId, party_id: PartyId) -> anyhow::Result<Role> {
+        let party = self.get_party_by_id(party_id).await.ok_or_else(|| {
             anyhow!("Unable to add user ({user_id}) to party ({party_id}) : party does not exist")
         })?;
         party
@@ -97,20 +78,28 @@ impl Store for MockStore {
             .ok_or_else(|| anyhow!("Unable to add user ({user_id}) to party ({party_id}) : user does not exist in this party")).cloned()
     }
 
-    fn get_party_by_id(&self, id: PartyId) -> Option<&Party> {
+    async fn is_user_in_party(&self, user_id: UserId, party_id: PartyId) -> anyhow::Result<bool> {
+        let party = self.get_party_by_id(party_id).await.ok_or_else(|| {
+            anyhow!("Unable to check user ({user_id}) in party ({party_id}) : party does not exist")
+        })?;
+
+        Ok(party.members.contains_key(&user_id))
+    }
+
+    async fn get_party_by_id(&self, id: PartyId) -> Option<&Party> {
         self.parties.get(&id)
     }
-    fn get_party_by_id_mut(&mut self, id: PartyId) -> Option<&mut Party> {
+    async fn get_party_by_id_mut(&mut self, id: PartyId) -> Option<&mut Party> {
         self.parties.get_mut(&id)
     }
 
-    fn add_user_to_party(
+    async fn add_user_to_party(
         &mut self,
         user_id: UserId,
         party_id: PartyId,
         member_role: Role,
     ) -> anyhow::Result<()> {
-        let party = self.get_party_by_id_mut(party_id).ok_or_else(|| {
+        let party = self.get_party_by_id_mut(party_id).await.ok_or_else(|| {
             anyhow!("Unable to add user ({user_id}) to party ({party_id}) : party does not exist")
         })?;
 
@@ -124,8 +113,12 @@ impl Store for MockStore {
         Ok(())
     }
 
-    fn remove_user_from_party(&mut self, user_id: UserId, party_id: PartyId) -> anyhow::Result<()> {
-        let party = self.get_party_by_id_mut(party_id).ok_or_else(|| {
+    async fn remove_user_from_party(
+        &mut self,
+        user_id: UserId,
+        party_id: PartyId,
+    ) -> anyhow::Result<()> {
+        let party = self.get_party_by_id_mut(party_id).await.ok_or_else(|| {
             anyhow!(
                 "Unable to remove user ({user_id}) from party ({party_id}) : party does not exist"
             )
@@ -140,20 +133,33 @@ impl Store for MockStore {
         }
     }
 
-    fn delete_party(&mut self, party_id: PartyId) -> anyhow::Result<Party> {
+    async fn delete_party(&mut self, party_id: PartyId) -> anyhow::Result<Party> {
         self.parties
             .remove(&party_id)
             .ok_or_else(|| anyhow!("Unable to delete party ({party_id}) : no such party"))
     }
+}
 
-    fn create_invitation(&mut self, party_id: PartyId, ttl: Duration) -> InvitationToken {
+#[async_trait]
+impl InvitationPersistence for MockStore {
+    async fn create_invitation(
+        &mut self,
+        party_id: PartyId,
+        ttl: Duration,
+    ) -> anyhow::Result<InvitationToken> {
+        // check if party exists
+        let _ = self.get_user_by_id(party_id).await.ok_or_else(|| {
+            anyhow!("Unable to create an invitation for party ({party_id}) : party does not exist")
+        })?;
+
         let invitation = Invitation::new(ttl, party_id);
         self.invitations
             .insert(invitation.token, invitation.clone());
-        invitation.token
+
+        Ok(invitation.token)
     }
 
-    fn consume_invitation(&mut self, token: InvitationToken) -> anyhow::Result<PartyId> {
+    async fn consume_invitation(&mut self, token: InvitationToken) -> anyhow::Result<PartyId> {
         let invitation = self
             .invitations
             .remove(&token)
@@ -165,7 +171,10 @@ impl Store for MockStore {
 
         Ok(invitation.party_id)
     }
+}
 
+#[async_trait]
+impl DebugStore for MockStore {
     fn create_fake_user(&mut self) {
         let id = UserId::new_v4();
         let password_hash = {

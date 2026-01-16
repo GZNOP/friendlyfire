@@ -1,16 +1,17 @@
 use std::{sync::Arc, time::Duration};
 
-use tokio::{sync::RwLock, time::Instant};
+use tokio::time::Instant;
 
 use crate::{
+    http::AppState,
     invitation::InvitationToken,
     party::{PartyId, Role},
-    store::{MockStore, Store},
+    store::{DebugStore, MockStore},
     user::UserId,
 };
 
 pub struct DebugApp {
-    state: Arc<RwLock<MockStore>>,
+    state: Arc<AppState>,
 }
 
 struct UserView {
@@ -32,7 +33,7 @@ struct InvitationView {
 }
 
 impl DebugApp {
-    pub fn new(store: Arc<RwLock<MockStore>>) -> Self {
+    pub fn new(store: Arc<AppState>) -> Self {
         Self { state: store }
     }
 
@@ -40,17 +41,17 @@ impl DebugApp {
         ui.heading("Debug Actions");
         ui.horizontal(|ui| {
             if ui.button("🦧 Create fake user").clicked() {
-                let mut store = self.state.blocking_write();
+                let mut store = self.state.store.blocking_write();
                 store.create_fake_user();
             }
 
             if ui.button("🕺 Create party").clicked() {
-                let mut store = self.state.blocking_write();
+                let mut store = self.state.store.blocking_write();
                 store.create_fake_party();
             }
 
             if ui.button("💌 Create invitation").clicked() {
-                let mut store = self.state.blocking_write();
+                let mut store = self.state.store.blocking_write();
                 store.create_fake_invitation();
             }
         });
@@ -126,7 +127,7 @@ impl DebugApp {
 impl eframe::App for DebugApp {
     fn update(&mut self, ctx: &egui::Context, _: &mut eframe::Frame) {
         let snapshot = {
-            let store = self.state.blocking_read();
+            let store = self.state.store.blocking_read();
             DebugSnapshot::from_store(&store)
         };
 

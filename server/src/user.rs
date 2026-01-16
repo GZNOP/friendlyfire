@@ -1,10 +1,19 @@
 use std::fmt::Display;
 
+use async_trait::async_trait;
 use tokio::time::Instant;
 use uuid::Uuid;
 
 pub type UserId = Uuid;
 pub type AuthToken = Uuid;
+
+#[async_trait]
+pub trait UserPersistence {
+    async fn create_user(&mut self, user: User) -> anyhow::Result<()>;
+    async fn get_user_by_id(&self, id: UserId) -> Option<&User>;
+    async fn get_user_by_email(&self, email: &str) -> Option<&User>;
+    async fn delete_user(&mut self, id: UserId) -> anyhow::Result<()>;
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct User {
